@@ -1,12 +1,15 @@
 #include <iostream>
 #include <string>
 #include "user.pb.h"
+#include "mpzrpcapplication.h"
+#include "rpcprovider.h"
 
 // UserService是一个本地服务，提供本地方法Login()
 class UserService : public fixbug::UserServiceRpc {
     bool Login(std::string name, std::string pwd) {
         std::cout << "doing local Login() Func" << std::endl;
         std::cout << "name = " << name << " pdw = " << pwd << std::endl;
+        return true;
     }
 
     // 重写基类中的Login()虚函数
@@ -32,7 +35,15 @@ class UserService : public fixbug::UserServiceRpc {
     }
 };
 
-int main() {
-    
+int main(int argc, char** argv) {
+    // 初始化rpc框架
+    MpzrpcApplication::Init(argc, argv);
+
+    RpcProvider provider;
+    // 部署rpc服务到rpc节点
+    provider.NotifyService(new UserService());
+    // 启动rpc服务节点，开始提供rpc远程调用服务
+    provider.Run();
+
     return 0;
 }
