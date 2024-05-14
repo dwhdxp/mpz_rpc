@@ -54,7 +54,7 @@ void RpcProvider::OnConnection(const muduo::net::TcpConnectionPtr& conn) {
     }
 }
 
-// 已建立连接用户的读写事件：1. 解析rpc请求：请求消息的反序列化； 2. 根据rpc请求定位某service的rpc方法；3. 调用
+// 已建立连接用户的读写事件：1. 解析rpc请求：请求消息的反序列化； 2. 根据rpc请求定位某service的rpc方法；3. 调用rpc方法
 /*
     RpcProvider、RpcConsumer协商消息格式
     消息格式：head_size(4字节) + head_str(service_name + method_name + args_size) + args_str
@@ -65,10 +65,7 @@ void RpcProvider::OnMessage(const muduo::net::TcpConnectionPtr& conn, muduo::net
     
     // 读取前4个字节，获取head_str长度
     uint32_t header_size = 0;
-    // recv_buf.copy((char*)&header_size, 4, 0);
-    char* c_size;
-    recv_buf.copy(c_size, 4, 0);
-    header_size = atoi(c_size);
+    recv_buf.copy((char*)&header_size, 4, 0);
 
     // 反序列化，获取rpc_header_str和rpc_args_str
     std::string rpc_header_str = recv_buf.substr(4, header_size);
@@ -122,6 +119,10 @@ void RpcProvider::OnMessage(const muduo::net::TcpConnectionPtr& conn, muduo::net
     */
     // 生成rpc方法调用的request和response参数，Loginrequest和Loginresponse都继承了Message因此使用基类指针
     google::protobuf::Message* request = service->GetRequestPrototype(method).New();
+    if (!request->ParseFromString(rpc_args_str)) {
+        std::cout << "request parse error, content:" << rpc_args_str << std::endl;
+    }
+
     google::protobuf::Message* response = service->GetResponsePrototype(method).New();
 
     // 绑定rpc方法调用后的回调操作done->Run()
@@ -132,11 +133,11 @@ void RpcProvider::OnMessage(const muduo::net::TcpConnectionPtr& conn, muduo::net
                                                                     &RpcProvider::SendRpcResponse,
                                                                     conn,
                                                                     response);
-
+    
     service->CallMethod(method, nullptr, request, response, done);
 }
 
-// done->Run()
+// Closure回调操作done->Run()，用于response序列化和网络发送
 void RpcProvider::SendRpcResponse(const muduo::net::TcpConnectionPtr& conn, google::protobuf::Message* response) {
     std::string rpc_response;
     if (response->SerializeToString(&rpc_response)) {
