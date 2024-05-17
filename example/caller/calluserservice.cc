@@ -23,5 +23,20 @@ int main(int argc, char** argv) {
         std::cout << "rpc login response error: " << response.result().errmsg() << std::endl;
     }
 
+    // 调用UserServiceRpc对象上的Register方法
+    fixbug::RegisterRequest rq;
+    rq.set_id(1000);
+    rq.set_name("Dxp");
+    rq.set_pwd("123456789");
+    fixbug::RegisterResponse rep;
+    stub.Register(nullptr, &rq, &rep, nullptr);
+
+    if (rep.result().errcode() == 0) {
+        std::cout << "rpc Register success: " << rep.success() << std::endl;
+    }
+    else {
+        std::cout << "rpc Register response error: " << rep.result().errmsg() << std::endl;
+    }
+
     return 0;
 }
