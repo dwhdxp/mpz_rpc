@@ -44,9 +44,10 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     send_rpc_str += args_str;
 
     std::cout << "================================" << std::endl;
-    std::cout << "send_rpc_str：" << send_rpc_str << std::endl; 
     std::cout << "header_size：" << header_size << std::endl; 
     std::cout << "header_str：" << header_str << std::endl; 
+    std::cout << "service_name: " << service_name << std::endl; 
+    std::cout << "method_name: " << method_name << std::endl; 
     std::cout << "args_size：" << args_size << std::endl; 
     std::cout << "args_str：" << args_str << std::endl; 
     std::cout << "================================" << std::endl;
@@ -65,29 +66,34 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     server_addr.sin_port = htons(port);
     server_addr.sin_addr.s_addr = inet_addr(ip.c_str());
     // 建立连接
-    if (connect(clientfd, (sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
+    if (connect(clientfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
         std::cout << "connect error" << std::endl;
         close(clientfd);
+        return;
     }
 
     // 发送rpc请求
     if (send(clientfd, send_rpc_str.c_str(), send_rpc_str.size(), 0) == -1) {
         std::cout << "send error" << std::endl;
         close(clientfd);
+        return;
     }
 
-    // 接收响应
+    // 接收rpc响应
     char recv_buf[1024] {0};
     int recv_size = 0;
     if (-1 == (recv_size  = recv(clientfd, recv_buf, 1024, 0))) {
         std::cout << "recv error" << std::endl;
         close(clientfd);
+        return;
     }
 
     // 3. 反序列化response
     if (!response->ParseFromArray(recv_buf, recv_size)) {
         std::cout << "parse recv_str error" << std::endl;
         close(clientfd);
+        return;
     }
+
     close(clientfd);
 }
