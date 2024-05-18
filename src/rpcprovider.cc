@@ -85,12 +85,12 @@ void RpcProvider::OnMessage(const muduo::net::TcpConnectionPtr& conn, muduo::net
     std::string rpc_args_str = recv_buf.substr(4 + header_size, args_size);
 
     std::cout << "=========================================" << std::endl;
-    std::cout << "header_size：" << header_size << std::endl;
-    std::cout << "rpc_header_str：" << rpc_header_str << std::endl;
-    std::cout << "service_name：" << service_name << std::endl;
-    std::cout << "method_name：" << method_name << std::endl;
-    std::cout << "args_size：" << args_size << std::endl;
-    std::cout << "rpc_args_str：" << rpc_args_str << std::endl;
+    std::cout << "header_size: " << header_size << std::endl;
+    std::cout << "rpc_header_str: " << rpc_header_str << std::endl;
+    std::cout << "service_name: " << service_name << std::endl;
+    std::cout << "method_name: " << method_name << std::endl;
+    std::cout << "args_size: " << args_size << std::endl;
+    std::cout << "rpc_args_str: " << rpc_args_str << std::endl;
     std::cout << "=========================================" << std::endl;
 
 

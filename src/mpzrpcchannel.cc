@@ -44,12 +44,12 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     send_rpc_str += args_str;
 
     std::cout << "================================" << std::endl;
-    std::cout << "header_size：" << header_size << std::endl; 
-    std::cout << "header_str：" << header_str << std::endl; 
+    std::cout << "header_size: " << header_size << std::endl; 
+    std::cout << "header_str: " << header_str << std::endl; 
     std::cout << "service_name: " << service_name << std::endl; 
     std::cout << "method_name: " << method_name << std::endl; 
-    std::cout << "args_size：" << args_size << std::endl; 
-    std::cout << "args_str：" << args_str << std::endl; 
+    std::cout << "args_size: " << args_size << std::endl; 
+    std::cout << "args_str: " << args_str << std::endl; 
     std::cout << "================================" << std::endl;
 
     // 2. tcp网络编程发送消息
