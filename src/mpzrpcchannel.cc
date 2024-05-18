@@ -16,7 +16,7 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
         args_size = args_str.size();
     }
     else {
-        std::cout << "request serialize error" << std::endl;
+        controller->SetFailed("serialize request error");
         return;
     }
 
@@ -33,7 +33,7 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
         header_size = header_str.size();
     }
     else {
-        std::cout << "rpcHeader serialize error" << std::endl;
+        controller->SetFailed("serialize rpcHeader error");
         return;
     }
 
@@ -55,7 +55,8 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     // 2. tcp网络编程发送消息
     int clientfd = socket(AF_INET, SOCK_STREAM, 0);
     if (clientfd == -1) {
-        std::cout << "open clientfd error" << std::endl;
+        controller->SetFailed("create clientfd error: " + std::string(strerror(errno)));
+        return;
     }
 
     std::string ip = MpzrpcApplication::GetInstance().GetConfig().Load("rpcserverip");
@@ -67,14 +68,14 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     server_addr.sin_addr.s_addr = inet_addr(ip.c_str());
     // 建立连接
     if (connect(clientfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
-        std::cout << "connect error" << std::endl;
+        controller->SetFailed("connect error: "+ std::string(strerror(errno)));
         close(clientfd);
         return;
     }
 
     // 发送rpc请求
     if (send(clientfd, send_rpc_str.c_str(), send_rpc_str.size(), 0) == -1) {
-        std::cout << "send error" << std::endl;
+        controller->SetFailed("send error: "+ std::string(strerror(errno)));
         close(clientfd);
         return;
     }
@@ -83,14 +84,17 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     char recv_buf[1024] {0};
     int recv_size = 0;
     if (-1 == (recv_size  = recv(clientfd, recv_buf, 1024, 0))) {
-        std::cout << "recv error" << std::endl;
+        controller->SetFailed("recv error: "+ std::string(strerror(errno)));
         close(clientfd);
         return;
     }
 
-    // 3. 反序列化response
+    /*
+        3. 反序列化response
+        由于是二进制数据会提前出现'\0'，使用PaeseFromString来反序列化会失败
+    */ 
     if (!response->ParseFromArray(recv_buf, recv_size)) {
-        std::cout << "parse recv_str error" << std::endl;
+        controller->SetFailed("rparse recv_str error: " + std::string(strerror(errno)));
         close(clientfd);
         return;
     }
