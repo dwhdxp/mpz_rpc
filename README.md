@@ -6,6 +6,7 @@
 
 
 
+
 **RPC框架中核心类的介绍：**
 
 Callee：
@@ -19,6 +20,7 @@ Caller：
 
 * MpzrpcChannel类（继承RpcChannel）：protoc生成的Stub类，将所有的调用都指向RpcChannel中的CallMethod()方法，但CallMethod是一个纯虚函数，因此需要重写并实现CallMethod()，从而通过基类指针来完成基于protobuf的RPC调用，而不是将调用限定在一个特定的RPC实现中；
 	* `CallMethod()`：负责将rpc请求序列化并通过网络发送，同时接收响应并反序列化；
+
 
 
 
@@ -42,7 +44,7 @@ Caller：
 		* 基于tcp网络编程，将rpc请求发送；
 		* 接收响应，并反序列化response返回给client；
 
- ## example
+ ## Example
 
 在业务层，服务提供方将本地服务发布成rpc远程服务流程：
 
@@ -61,6 +63,6 @@ Caller：
 
 
 
-## Zookeeper分布式协调服务
+## ZooKeeper分布式协调服务
 
 Zookeeper是一个开源的分布式协调服务，在本项目中主要作为配置中心，提供服务动态注册和发现的功能，首先将每个rpc服务和对应的RPC节点地址注册到ZK上，此时ZK上面标识了每个rpc服务所对应的分布式节点地址；当进行rpc调用时，服务调用方只需要给出rpc服务名，注册中心就会返回一个对应的RPC节点地址，这样可以保证每次获得的都是最新的分布式节点地址。
