@@ -43,14 +43,12 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     send_rpc_str += header_str;
     send_rpc_str += args_str;
 
-    std::cout << "================================" << std::endl;
     std::cout << "header_size: " << header_size << std::endl; 
     std::cout << "header_str: " << header_str << std::endl; 
     std::cout << "service_name: " << service_name << std::endl; 
     std::cout << "method_name: " << method_name << std::endl; 
     std::cout << "args_size: " << args_size << std::endl; 
     std::cout << "args_str: " << args_str << std::endl; 
-    std::cout << "================================" << std::endl;
 
     // 2. tcp网络编程发送消息
     int clientfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -59,8 +57,28 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
         return;
     }
 
-    std::string ip = MpzrpcApplication::GetInstance().GetConfig().Load("rpcserverip");
-    uint16_t port = atoi(MpzrpcApplication::GetInstance().GetConfig().Load("rpcserverport").c_str());
+    // std::string ip = MpzrpcApplication::GetInstance().GetConfig().Load("rpcserverip");
+    // uint16_t port = atoi(MpzrpcApplication::GetInstance().GetConfig().Load("rpcserverport").c_str());
+    /*
+        访问zookeeper查询rpc服务对应的rpc节点的host=ip:port
+    */
+    ZkClient zkclient;
+    zkclient.Start();
+
+    std::string path = "/" + service_name + "/" + method_name;
+    std::string host = zkclient.GetData(path.c_str());
+    if (host == "") {
+        controller->SetFailed(path + " is not exist");
+        return;
+    }
+    int idx = host.find(":");
+    if (idx == -1) {
+        controller->SetFailed(path + " address is invalid!");
+        return;
+    }
+    std::string ip = host.substr(0, idx);
+    uint32_t port = atoi(host.substr(idx + 1, path.size() - idx - 1).c_str());
+    LOG_INFO("query zookeeper host:%s:%d", ip.c_str(), port);
 
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
@@ -68,7 +86,7 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
     server_addr.sin_addr.s_addr = inet_addr(ip.c_str());
     // 建立连接
     if (connect(clientfd, (struct sockaddr*)&server_addr, sizeof(server_addr)) == -1) {
-        controller->SetFailed("connect error: "+ std::string(strerror(errno)));
+        controller->SetFailed("connect rpcserver error: "+ std::string(strerror(errno)));
         close(clientfd);
         return;
     }
@@ -94,7 +112,7 @@ void MpzrpcChannel::CallMethod(const google::protobuf::MethodDescriptor *method,
         由于是二进制数据会提前出现'\0'，使用PaeseFromString来反序列化会失败
     */ 
     if (!response->ParseFromArray(recv_buf, recv_size)) {
-        controller->SetFailed("rparse recv_str error: " + std::string(strerror(errno)));
+        controller->SetFailed("parse recv_str error: " + std::string(strerror(errno)));
         close(clientfd);
         return;
     }

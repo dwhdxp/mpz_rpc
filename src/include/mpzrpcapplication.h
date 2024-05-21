@@ -3,6 +3,8 @@
 #include "mpzrpcchannel.h"
 #include "mpzrpccontroller.h"
 #include "rpcprovider.h"
+#include "logger.h"
+#include "zookeeperutil.h"
 
 // RPC框架基础类：单例
 class MpzrpcApplication {

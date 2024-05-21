@@ -10,13 +10,15 @@ void RpcProvider::NotifyService(google::protobuf::Service *service) {
 
     // 获取服务对象service的rpc方法数量
     int methodCnt = pserviceDesc->method_count();
-    std::cout << "service_name: " << service_name << std::endl;
-    
+    // std::cout << "service_name: " << service_name << std::endl;
+    LOG_INFO("service_name: %s", service_name.c_str());
+
     for (int i = 0; i < methodCnt; ++i) {
         // 获取rpc方法的描述信息
         const google::protobuf::MethodDescriptor* pmethodDesc = pserviceDesc->method(i);
         std::string method_name = pmethodDesc->name();
-        std::cout << "method_name: " << method_name << std::endl;
+        // std::cout << "method_name: " << method_name << std::endl;
+        LOG_INFO("method_name: %s", method_name.c_str());
         service_info.m_methodMap.insert({method_name, pmethodDesc});
     }
 
@@ -30,7 +32,7 @@ void RpcProvider::Run() {
     muduo::net::InetAddress address(ip, port);
 
     // 创建TcpServer对象
-    muduo::net::TcpServer server(&m_eventLoop, address, "RpcProvidder");
+    muduo::net::TcpServer server(&m_eventLoop, address, "RpcProvider");
 
     // 注册连接事件和读写事件回调
     server.setConnectionCallback(std::bind(&RpcProvider::OnConnection, this, std::placeholders::_1));
@@ -39,9 +41,29 @@ void RpcProvider::Run() {
     // 设置muduo线程数量
     server.setThreadNum(4);
 
+    /*
+        将当前启动的rpc节点上发布的服务注册到zookeeper上，让rpc client可以从zk上发现服务
+        
+    */
+    ZkClient zkClient;
+    zkClient.Start();
+    
+    // rpc服务设置为永久性节点，rpc服务方法设置为临时性节点
+    for (auto &sp : m_serviceMap) {
+        std::string service_name = sp.first;
+        std::string service_path = "/" + service_name;
+        zkClient.Create(service_path.c_str(), nullptr, 0, 0);
+        for (auto &mp : sp.second.m_methodMap) {
+            std::string method_name = mp.first;
+            std::string method_path = service_path + "/" + method_name;
+            char host[128] {0};
+            sprintf(host, "%s:%d", ip.c_str(), port);
+            zkClient.Create(method_path.c_str(), host, strlen(host), ZOO_EPHEMERAL);
+        }
+    }
+
     server.start();
     std::cout << "RpcProvider start at ip: " << ip << " port: " << port << std::endl;
-
     // 进程阻塞，event_wait
     m_eventLoop.loop();
 }
@@ -74,7 +96,8 @@ void RpcProvider::OnMessage(const muduo::net::TcpConnectionPtr& conn, muduo::net
     std::string method_name;
     uint32_t args_size;
     if (!rpcHeader.ParseFromString(rpc_header_str)) {
-        std::cout << "parse rpc_header_str error!" << std::endl;
+        // std::cout << "parse rpc_header_str error!" << std::endl;
+        
         return;
     }
     else {
@@ -84,15 +107,12 @@ void RpcProvider::OnMessage(const muduo::net::TcpConnectionPtr& conn, muduo::net
     }
     std::string rpc_args_str = recv_buf.substr(4 + header_size, args_size);
 
-    std::cout << "=========================================" << std::endl;
     std::cout << "header_size: " << header_size << std::endl;
     std::cout << "rpc_header_str: " << rpc_header_str << std::endl;
     std::cout << "service_name: " << service_name << std::endl;
     std::cout << "method_name: " << method_name << std::endl;
     std::cout << "args_size: " << args_size << std::endl;
     std::cout << "rpc_args_str: " << rpc_args_str << std::endl;
-    std::cout << "=========================================" << std::endl;
-
 
     // 2. 定位rpc方法
     auto sit = m_serviceMap.find(service_name);
